@@ -50,8 +50,4 @@
       margin-right: 10px;
     }
     
-    #login{
-      color: white !important;
-    }
-    
     </style>
