@@ -1,51 +1,64 @@
 <template>
-    <div class="cart-container">
-      <h2>Shopping Cart</h2>
-      <div v-if="cartItems.length === 0">
-        <p>Your cart is empty.</p>
+    <div class="cart-container container mt-5">
+      <h2 class="text-center mb-4">Shopping Cart</h2>
+      <div v-if="cartItems.length === 0" class="alert alert-info text-center">
+        Your cart is empty.
       </div>
       <div v-else>
-        <div v-for="(item, index) in cartItems" :key="item.menuItem._id" class="cart-item">
-          <div class="item-details">
-            <h4>{{ item.menuItem.name }}</h4>
-            <p>Price: ${{ item.menuItem.price.toFixed(2) }}</p>
-            <div class="quantity-control">
-              <button @click="decreaseQuantity(index)">-</button>
-              <span>{{ item.quantity }}</span>
-              <button @click="increaseQuantity(index)">+</button>
+        <div v-for="(item, index) in cartItems" :key="item.menuItem._id" class="cart-item card mb-3">
+          <div class="card-body d-flex justify-content-between align-items-center">
+            <div class="item-details flex-grow-1">
+              <h4 class="card-title mb-1">{{ item.menuItem.name }}</h4>
+              <p class="card-text mb-1">Price: ${{ item.menuItem.price.toFixed(2) }}</p>
             </div>
-            <button @click="removeItem(index)">Remove</button>
+            <div class="quantity-control d-flex align-items-center">
+              <button class="btn btn-secondary btn-sm" @click="decreaseQuantity(index)">-</button>
+              <span class="mx-2">{{ item.quantity }}</span>
+              <button class="btn btn-secondary btn-sm" @click="increaseQuantity(index)">+</button>
+            </div>
+            <button class="btn btn-danger btn-sm ml-3" @click="removeItem(index)">Remove</button>
           </div>
         </div>
-        <div class="total-amount">
+        <div class="total-amount text-right">
           <h4>Total Amount: ${{ totalAmount.toFixed(2) }}</h4>
         </div>
-        <button @click="openModal">Place Order</button>
+        <div class="text-center">
+          <button class="btn btn-primary mt-3" @click="openModal">Place Order</button>
+        </div>
       </div>
       <!-- Modal -->
-      <div v-if="showModal" class="modal">
-        <div class="modal-content">
-          <h3>Enter Your Information</h3>
-          <form @submit.prevent="placeOrder">
-            <div>
-              <label for="firstName">First Name:</label>
-              <input type="text" id="firstName" v-model="firstName" required>
+      <div v-if="showModal" class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Enter Your Information</h5>
+              <button type="button" class="close" @click="closeModal">
+                <span>&times;</span>
+              </button>
             </div>
-            <div>
-              <label for="lastName">Last Name:</label>
-              <input type="text" id="lastName" v-model="lastName" required>
+            <div class="modal-body">
+              <form @submit.prevent="placeOrder">
+                <div class="form-group">
+                  <label for="firstName">First Name:</label>
+                  <input type="text" class="form-control" id="firstName" v-model="firstName" required>
+                </div>
+                <div class="form-group">
+                  <label for="lastName">Last Name:</label>
+                  <input type="text" class="form-control" id="lastName" v-model="lastName" required>
+                </div>
+                <div class="form-group">
+                  <label for="email">Email:</label>
+                  <input type="email" class="form-control" id="email" v-model="email" required>
+                </div>
+                <div class="form-group">
+                  <label for="deliveryAddress">Delivery Address:</label>
+                  <textarea class="form-control" id="deliveryAddress" v-model="deliveryAddress" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Place Order</button>
+                <button type="button" class="btn btn-secondary ml-2" @click="closeModal">Cancel</button>
+              </form>
             </div>
-            <div>
-              <label for="email">Email:</label>
-              <input type="email" id="email" v-model="email" required>
-            </div>
-            <div>
-              <label for="deliveryAddress">Delivery Address:</label>
-              <textarea id="deliveryAddress" v-model="deliveryAddress" required></textarea>
-            </div>
-            <button type="submit">Place Order</button>
-            <button type="button" @click="closeModal">Cancel</button>
-          </form>
+          </div>
         </div>
       </div>
     </div>
@@ -137,6 +150,9 @@
     max-width: 600px;
     margin: 0 auto;
     padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   }
   .cart-item {
     display: flex;
@@ -145,13 +161,20 @@
     margin-bottom: 10px;
     padding: 10px;
     border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #ffffff;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
   }
   .item-details {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     flex-grow: 1;
   }
   .quantity-control {
-    display: flex;
-    align-items: center;
+    display:flex;
+    align-items: right;
+    margin-left: auto;
   }
   .quantity-control button {
     margin: 0 5px;
@@ -160,39 +183,10 @@
     margin-top: 20px;
     text-align: right;
   }
-  .modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+  .modal.fade.show {
     display: flex;
-    justify-content: center;
     align-items: center;
-  }
-  .modal-content {
-    background-color: white;
-    padding: 20px;
-    border-radius: 5px;
-  }
-  .modal-content form {
-    display: flex;
-    flex-direction: column;
-  }
-  .modal-content form div {
-    margin-bottom: 10px;
-  }
-  .modal-content form label {
-    font-weight: bold;
-  }
-  .modal-content form input,
-  .modal-content form textarea {
-    width: 100%;
-    padding: 5px;
-  }
-  .modal-content form button {
-    margin-top: 10px;
+    justify-content: center;
   }
   </style>
   

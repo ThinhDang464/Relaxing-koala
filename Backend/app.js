@@ -146,3 +146,79 @@ app.post('/api/orders', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// API endpoint to create a user with a reservation
+app.post('/api/reservations', async (req, res) => {
+  try {
+    const { firstName, lastName, email, reservations } = req.body;
+
+    // Check if the user already exists
+    const existingUser = await OnlineCustomer.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: 'User with this email already exists' });
+    }
+
+    // Create a new user
+    const newUser = new OnlineCustomer({
+      firstName,
+      lastName,
+      email,
+      reservations,
+    });
+    await newUser.save();
+
+    res.json({ message: 'User created successfully', user: newUser });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API endpoint to fetch a reservation by email
+app.get('/api/reservations/:email', async (req, res) => {
+  try {
+    const email = req.params.email;
+    const user = await OnlineCustomer.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'Reservation not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching reservation:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API endpoint to update a reservation by email
+app.put('/api/reservations/:email', async (req, res) => {
+  try {
+    const email = req.params.email;
+    const updatedData = req.body;
+    const user = await OnlineCustomer.findOneAndUpdate({ email }, updatedData, { new: true });
+    if (!user) {
+      return res.status(404).json({ error: 'Reservation not found' });
+    }
+    res.json({ message: 'Reservation updated successfully', user });
+  } catch (error) {
+    console.error('Error updating reservation:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API endpoint to delete a reservation by email
+app.delete('/api/reservations/:email', async (req, res) => {
+  try {
+    const email = req.params.email;
+    const user = await OnlineCustomer.findOneAndDelete({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'Reservation not found' });
+    }
+    res.json({ message: 'Reservation deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting reservation:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+
