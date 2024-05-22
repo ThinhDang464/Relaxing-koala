@@ -1,7 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const menuItem = require('./objects/menuItem');
-
+const onlineCustomer = require('./objects/onlineCustomer');
+const cors = require('cors'); //need cors to make request from localhost:8000 to localhost:3000 of server
 const app = express();
 
 // MongoDB Atlas connection string
@@ -25,6 +26,52 @@ mongoose.connect(connectionString, {
 
 // Create the MenuItem model using the imported schema
 const MenuItem = mongoose.model('MenuItem', menuItem);
+const OnlineCustomer = mongoose.model('OnlineCustomer', onlineCustomer);
+
+// Define the CartItem schema
+const cartItemSchema = new mongoose.Schema({
+  menuItem: { type: mongoose.Schema.Types.ObjectId, ref: 'MenuItem', required: true },
+  quantity: { type: Number, required: true, default: 1 },
+});
+
+// Define the Cart schema
+const cartSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'OnlineCustomer', required: true },
+  items: [cartItemSchema],
+});
+
+// Create the Cart model
+const Cart = mongoose.model('Cart', cartSchema);
+
+// Define the Order schema
+const orderSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  items: [
+    {
+      menuItem: { type: mongoose.Schema.Types.ObjectId, ref: 'MenuItem', required: true },
+      quantity: { type: Number, required: true },
+    },
+  ],
+  totalAmount: { type: Number, required: true },
+  deliveryAddress: { type: String, required: true },
+  status: { type: String, enum: ['pending', 'processing', 'shipped', 'delivered'], default: 'pending' },
+  createdAt: { type: Date, default: Date.now },
+});
+
+// Create the Order model
+const Order = mongoose.model('Order', orderSchema);
+
+// Configure CORS options
+const corsOptions = {
+  origin: 'http://localhost:8080',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type'],
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+// Middleware to parse JSON request bodies
+app.use(express.json());
 
 // Hard-coded menu items
 const menuItems = [
@@ -37,15 +84,141 @@ const menuItems = [
 ];
 
 // Save the menu items to the database
-MenuItem.insertMany(menuItems)
-  .then(() => {
-    console.log('Menu items saved to the database');
-  })
-  .catch((error) => {
-    console.error('Error saving menu items:', error);
-  });
+async function saveMenuItems() {
+  for (const item of menuItems) {
+    try {
+      const existingItem = await MenuItem.findOne({ name: item.name });
+      if (!existingItem) {
+        const newItem = new MenuItem(item);
+        await newItem.save();
+        console.log(`Menu item "${item.name}" saved to the database`);
+      } else {
+        console.log(`Menu item "${item.name}" already exists in the database`);
+      }
+    } catch (error) {
+      console.error(`Error saving menu item "${item.name}":`, error);
+    }
+  }
+}
+saveMenuItems();
 
 // Test route
 app.get('/', (req, res) => {
   res.send('Hello, world!');
 });
+// API endpoint to get all menu items
+app.get('/api/menu-items', async (req, res) => {
+  try {
+    const items = await MenuItem.find(); //fetch all menu items from the database
+    res.json(items); //If the database query is successful, we send the retrieved menu items as a JSON response
+  } catch (error) {
+    console.error('Error retrieving menu items:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API endpoint to create an order
+app.post('/api/orders', async (req, res) => {
+  try {
+    const { firstName, lastName, email, deliveryAddress, cartItems } = req.body;
+
+    // Create a new user
+    const user = new OnlineCustomer({ firstName, lastName, email, deliveryAddress });
+    await user.save();
+
+    // Calculate the total amount
+    const totalAmount = cartItems.reduce((total, item) => {
+      return total + item.menuItem.price * item.quantity;
+    }, 0);
+
+    // Create a new order
+    const order = new Order({
+      user: user._id,
+      items: cartItems,
+      totalAmount,
+      deliveryAddress,
+    });
+    await order.save();
+
+    res.json({ message: 'Order placed successfully' });
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API endpoint to create a user with a reservation
+app.post('/api/reservations', async (req, res) => {
+  try {
+    const { firstName, lastName, email, reservations } = req.body;
+
+    // Check if the user already exists
+    const existingUser = await OnlineCustomer.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: 'User with this email already exists' });
+    }
+
+    // Create a new user
+    const newUser = new OnlineCustomer({
+      firstName,
+      lastName,
+      email,
+      reservations,
+    });
+    await newUser.save();
+
+    res.json({ message: 'User created successfully', user: newUser });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API endpoint to fetch a reservation by email
+app.get('/api/reservations/:email', async (req, res) => {
+  try {
+    const email = req.params.email;
+    const user = await OnlineCustomer.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'Reservation not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching reservation:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API endpoint to update a reservation by email
+app.put('/api/reservations/:email', async (req, res) => {
+  try {
+    const email = req.params.email;
+    const updatedData = req.body;
+    const user = await OnlineCustomer.findOneAndUpdate({ email }, updatedData, { new: true });
+    if (!user) {
+      return res.status(404).json({ error: 'Reservation not found' });
+    }
+    res.json({ message: 'Reservation updated successfully', user });
+  } catch (error) {
+    console.error('Error updating reservation:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// API endpoint to delete a reservation by email
+app.delete('/api/reservations/:email', async (req, res) => {
+  try {
+    const email = req.params.email;
+    const user = await OnlineCustomer.findOneAndDelete({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'Reservation not found' });
+    }
+    res.json({ message: 'Reservation deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting reservation:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+
